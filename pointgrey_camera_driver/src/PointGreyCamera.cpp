@@ -398,6 +398,14 @@ bool PointGreyCamera::getFormat7PixelFormatFromString(std::string &sformat, FlyC
     {
       fmt7PixFmt = PIXEL_FORMAT_MONO16;
     }
+    else if(sformat.compare("yuv422") == 0)
+    {
+      fmt7PixFmt = PIXEL_FORMAT_422YUV8;
+    }
+    else if(sformat.compare("rbg8") == 0)
+    {
+      fmt7PixFmt = PIXEL_FORMAT_RGB8;
+    }
     else
     {
       sformat = "raw8";
@@ -939,45 +947,49 @@ void PointGreyCamera::grabImage(sensor_msgs::Image &image, const std::string &fr
 
     // Check the bits per pixel.
     uint8_t bitsPerPixel = rawImage.GetBitsPerPixel();
+    PixelFormat pixfmt = rawImage.GetPixelFormat();
 
     // Set the image encoding
     std::string imageEncoding = sensor_msgs::image_encodings::MONO8;
-    BayerTileFormat bayer_format = rawImage.GetBayerTileFormat();
-    if(isColor_ && bayer_format != NONE)
+    switch(pixfmt)
     {
-      if(bitsPerPixel == 16)
+    default:
+      // Unknown
+      // no break
+    case PIXEL_FORMAT_MONO8:
+      imageEncoding = sensor_msgs::image_encodings::MONO8;
+      break;
+    case PIXEL_FORMAT_RAW16:
+    case PIXEL_FORMAT_MONO16:
+      imageEncoding = sensor_msgs::image_encodings::MONO16;
+      break;
+    case PIXEL_FORMAT_RGB8:
+      imageEncoding = sensor_msgs::image_encodings::RGB8;
+      break;
+    case PIXEL_FORMAT_422YUV8:
+      imageEncoding = sensor_msgs::image_encodings::YUV422;
+      break;
+    case PIXEL_FORMAT_RAW8:
+      switch(rawImage.GetBayerTileFormat())
       {
-        imageEncoding = sensor_msgs::image_encodings::MONO16; // 16 bit bayer not supported yet in ROS
-      }
-      else
-      {
-        switch(bayer_format)
-        {
-        case RGGB:
-          imageEncoding = sensor_msgs::image_encodings::BAYER_RGGB8;
-          break;
-        case GRBG:
-          imageEncoding = sensor_msgs::image_encodings::BAYER_GRBG8;
-          break;
-        case GBRG:
-          imageEncoding = sensor_msgs::image_encodings::BAYER_GBRG8;
-          break;
-        case BGGR:
-          imageEncoding = sensor_msgs::image_encodings::BAYER_BGGR8;
-          break;
-        }
-      }
-    }
-    else     // Mono camera or in pixel binned mode.
-    {
-      if(bitsPerPixel == 16)
-      {
-        imageEncoding = sensor_msgs::image_encodings::MONO16;
-      }
-      else
-      {
+      default:
         imageEncoding = sensor_msgs::image_encodings::MONO8;
+        break;
+      case RGGB:
+        imageEncoding = sensor_msgs::image_encodings::BAYER_RGGB8;
+        break;
+      case GRBG:
+        imageEncoding = sensor_msgs::image_encodings::BAYER_GRBG8;
+        break;
+      case GBRG:
+        imageEncoding = sensor_msgs::image_encodings::BAYER_GBRG8;
+        break;
+      case BGGR:
+        imageEncoding = sensor_msgs::image_encodings::BAYER_BGGR8;
+        break;
       }
+      break;
+
     }
 
     fillImage(image, imageEncoding, rawImage.GetRows(), rawImage.GetCols(), rawImage.GetStride(), rawImage.GetData());
